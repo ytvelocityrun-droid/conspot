@@ -1,7 +1,23 @@
 import type { Route } from "./+types/home";
 import Navbar from "../../components/Navbar";
+import Upload from "../../components/Upload";
 import { ArrowRight, ArrowUpRight, Clock, Layers } from "lucide-react";
 import Button from "../../components/ui/Button";
+import { useNavigate } from "react-router";
+import { MAX_UPLOAD_FILE_SIZE_BYTES } from "../../libs/constants";
+import { persistUploadImage } from "../../libs/uploadStorage";
+
+const formatFileSize = (bytes: number) => {
+  if (bytes >= 1024 * 1024) {
+    return `${(bytes / (1024 * 1024)).toFixed(0)} MB`;
+  }
+
+  if (bytes >= 1024) {
+    return `${(bytes / 1024).toFixed(0)} KB`;
+  }
+
+  return `${bytes} bytes`;
+};
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -11,6 +27,19 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export default function Home() {
+    const navigate = useNavigate();
+
+    const handleUploadComplete = async (base64Image: string, mimeType: string) => {
+        const newId = Date.now().toString();
+
+        try {
+            await persistUploadImage(newId, { base64Image, mimeType });
+            navigate(`/visualizer/${newId}`);
+        } catch {
+            // Preserve the previous successful-navigation behavior by only navigating after persistence succeeds.
+        }
+    }
+
   return (
     <div className="home">
       <Navbar />
@@ -50,10 +79,10 @@ export default function Home() {
               </div>
 
               <h3>Upload your floor plan</h3>
-              <p>Supports JPG, PNG, formats up to 10MB</p>
+              <p>Supports JPG and PNG formats up to {formatFileSize(MAX_UPLOAD_FILE_SIZE_BYTES)}</p>
             </div>
 
-            <p>Upload images</p>
+            <Upload onComplete={handleUploadComplete} />
           </div>
         </div>
       </section>
