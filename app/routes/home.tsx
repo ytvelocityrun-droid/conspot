@@ -4,6 +4,21 @@ import Upload from "../../components/Upload";
 import { ArrowRight, ArrowUpRight, Clock, Layers } from "lucide-react";
 import Button from "../../components/ui/Button";
 import { useNavigate } from "react-router";
+import { MAX_UPLOAD_FILE_SIZE_BYTES } from "../../libs/constants";
+
+const UPLOAD_IMAGE_STORAGE_PREFIX = "conspot:upload:";
+
+const formatFileSize = (bytes: number) => {
+  if (bytes >= 1024 * 1024) {
+    return `${(bytes / (1024 * 1024)).toFixed(0)} MB`;
+  }
+
+  if (bytes >= 1024) {
+    return `${(bytes / 1024).toFixed(0)} KB`;
+  }
+
+  return `${bytes} bytes`;
+};
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -15,12 +30,19 @@ export function meta({}: Route.MetaArgs) {
 export default function Home() {
     const navigate = useNavigate();
 
-    const handleUploadComplete = async (base64Image: string) => {
+    const handleUploadComplete = (base64Image: string, mimeType: string) => {
         const newId = Date.now().toString();
 
-        navigate(`/visualizer/${newId}`);
+        try {
+            window.localStorage.setItem(
+                `${UPLOAD_IMAGE_STORAGE_PREFIX}${newId}`,
+                JSON.stringify({ base64Image, mimeType }),
+            );
+        } catch {
+            // Ignore storage failures so navigation can still proceed.
+        }
 
-        return true;
+        navigate(`/visualizer/${newId}`);
     }
 
   return (
@@ -62,7 +84,7 @@ export default function Home() {
               </div>
 
               <h3>Upload your floor plan</h3>
-              <p>Supports JPG, PNG, formats up to 10MB</p>
+              <p>Supports JPG and PNG formats up to {formatFileSize(MAX_UPLOAD_FILE_SIZE_BYTES)}</p>
             </div>
 
             <Upload onComplete={handleUploadComplete} />

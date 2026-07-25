@@ -13,6 +13,7 @@ export const PROGRESS_INCREMENT = 15;
 export const REDIRECT_DELAY_MS = 600;
 export const PROGRESS_INTERVAL_MS = 100;
 export const PROGRESS_STEP = 5;
+export const MAX_UPLOAD_FILE_SIZE_BYTES = 50 * 1024 * 1024;
 
 // UI Constants
 export const GRID_OVERLAY_SIZE = "60px 60px";
