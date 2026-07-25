@@ -16,6 +16,8 @@ const Upload = ({ onComplete }: UploadProps) => {
     const readerRef = useRef<FileReader | null>(null);
     const intervalRef = useRef<number | null>(null);
     const timeoutRef = useRef<number | null>(null);
+    const progressRef = useRef(0);
+    const completedRef = useRef(false);
 
     const { isSignedIn } = useOutletContext<AuthContext>();
 
@@ -43,16 +45,27 @@ const Upload = ({ onComplete }: UploadProps) => {
     }, []);
 
     const getMimeType = (selectedFile: File) => {
-        if (selectedFile.type) {
+        const normalizedNameMimeType = selectedFile.name.toLowerCase().endsWith('.png')
+            ? 'image/png'
+            : selectedFile.name.toLowerCase().endsWith('.jpg') || selectedFile.name.toLowerCase().endsWith('.jpeg')
+                ? 'image/jpeg'
+                : null;
+
+        if (normalizedNameMimeType && ACCEPTED_FILE_TYPES.includes(normalizedNameMimeType)) {
+            return normalizedNameMimeType;
+        }
+
+        if (selectedFile.type && ACCEPTED_FILE_TYPES.includes(selectedFile.type)) {
             return selectedFile.type;
         }
 
-        return selectedFile.name.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
+        return normalizedNameMimeType ?? 'image/jpeg';
     };
 
     const isValidUpload = (selectedFile: File) => {
+        const normalizedMimeType = getMimeType(selectedFile);
         const hasAcceptedExtension = /\.(jpe?g|png)$/i.test(selectedFile.name);
-        const hasAcceptedMimeType = ACCEPTED_FILE_TYPES.includes(selectedFile.type);
+        const hasAcceptedMimeType = ACCEPTED_FILE_TYPES.includes(normalizedMimeType);
 
         return (hasAcceptedExtension || hasAcceptedMimeType) && selectedFile.size <= MAX_UPLOAD_FILE_SIZE_BYTES;
     };
@@ -73,6 +86,8 @@ const Upload = ({ onComplete }: UploadProps) => {
         cleanupUploadLifecycle();
         setFile(selectedFile);
         setProgress(0);
+        progressRef.current = 0;
+        completedRef.current = false;
         setIsDragging(false);
 
         const reader = new FileReader();
@@ -84,20 +99,37 @@ const Upload = ({ onComplete }: UploadProps) => {
             }
 
             const base64Data = result.includes(',') ? result.split(',')[1] : result;
-            const intervalId = window.setInterval(() => {
-                setProgress((currentProgress) => {
-                    if (currentProgress >= 100) {
-                        window.clearInterval(intervalId);
-                        intervalRef.current = null;
-                        timeoutRef.current = window.setTimeout(() => {
-                            timeoutRef.current = null;
-                            onComplete?.(base64Data, getMimeType(selectedFile));
-                        }, REDIRECT_DELAY_MS);
-                        return 100;
-                    }
+            const mimeType = getMimeType(selectedFile);
+            const finishUpload = () => {
+                if (completedRef.current) {
+                    return;
+                }
 
-                    return Math.min(100, currentProgress + PROGRESS_STEP);
-                });
+                completedRef.current = true;
+
+                if (intervalRef.current !== null) {
+                    window.clearInterval(intervalRef.current);
+                    intervalRef.current = null;
+                }
+
+                if (timeoutRef.current !== null) {
+                    window.clearTimeout(timeoutRef.current);
+                }
+
+                timeoutRef.current = window.setTimeout(() => {
+                    timeoutRef.current = null;
+                    onComplete?.(base64Data, mimeType);
+                }, REDIRECT_DELAY_MS);
+            };
+
+            const intervalId = window.setInterval(() => {
+                const nextProgress = Math.min(100, progressRef.current + PROGRESS_STEP);
+                progressRef.current = nextProgress;
+                setProgress(nextProgress);
+
+                if (nextProgress >= 100) {
+                    finishUpload();
+                }
             }, PROGRESS_INTERVAL_MS);
 
             intervalRef.current = intervalId;

@@ -5,8 +5,7 @@ import { ArrowRight, ArrowUpRight, Clock, Layers } from "lucide-react";
 import Button from "../../components/ui/Button";
 import { useNavigate } from "react-router";
 import { MAX_UPLOAD_FILE_SIZE_BYTES } from "../../libs/constants";
-
-const UPLOAD_IMAGE_STORAGE_PREFIX = "conspot:upload:";
+import { persistUploadImage } from "../../libs/uploadStorage";
 
 const formatFileSize = (bytes: number) => {
   if (bytes >= 1024 * 1024) {
@@ -30,19 +29,15 @@ export function meta({}: Route.MetaArgs) {
 export default function Home() {
     const navigate = useNavigate();
 
-    const handleUploadComplete = (base64Image: string, mimeType: string) => {
+    const handleUploadComplete = async (base64Image: string, mimeType: string) => {
         const newId = Date.now().toString();
 
         try {
-            window.localStorage.setItem(
-                `${UPLOAD_IMAGE_STORAGE_PREFIX}${newId}`,
-                JSON.stringify({ base64Image, mimeType }),
-            );
+            await persistUploadImage(newId, { base64Image, mimeType });
+            navigate(`/visualizer/${newId}`);
         } catch {
-            // Ignore storage failures so navigation can still proceed.
+            // Preserve the previous successful-navigation behavior by only navigating after persistence succeeds.
         }
-
-        navigate(`/visualizer/${newId}`);
     }
 
   return (

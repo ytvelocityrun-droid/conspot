@@ -1,30 +1,28 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router";
-
-const UPLOAD_IMAGE_STORAGE_PREFIX = "conspot:upload:";
-
-interface StoredUploadImage {
-    base64Image: string;
-    mimeType: string;
-}
+import { getUploadImage, type StoredUploadImage } from "../../libs/uploadStorage";
 
 const VisualizerId = () => {
     const { id } = useParams();
     const [uploadImage, setUploadImage] = useState<StoredUploadImage | null>(null);
 
     useEffect(() => {
+        setUploadImage(null);
+
         if (!id) {
             return;
         }
 
-        try {
-            const storedValue = window.localStorage.getItem(`${UPLOAD_IMAGE_STORAGE_PREFIX}${id}`);
-            if (storedValue) {
-                setUploadImage(JSON.parse(storedValue) as StoredUploadImage);
+        const loadUploadImage = async () => {
+            try {
+                const storedValue = await getUploadImage(id);
+                setUploadImage(storedValue);
+            } catch {
+                setUploadImage(null);
             }
-        } catch {
-            setUploadImage(null);
-        }
+        };
+
+        void loadUploadImage();
     }, [id]);
 
     if (!uploadImage) {
